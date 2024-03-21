@@ -1,17 +1,15 @@
 from docx import Document
 import csv
+import os
+import re
 
-def read_docx_table(file_path):
+finalCSV = []
+
+def read_docx_table(file_path, state_name = ""):
     document = Document(file_path)
-
     # print(len(document.tables)) # DEBUG
 
-    # table = document.tables[1]  # Assuming the first table in the document
-
-    finalCSV = []
-
     tempRowOfCSV = []
-    csvRowCounter = -1 # Because the first table is a index
 
     for table in document.tables:
         
@@ -22,7 +20,7 @@ def read_docx_table(file_path):
             for cell in row.cells:
                 row_data.append(cell.text)
 
-            # print(row_data) # DEBUG
+            print(row_data) # DEBUG
 
             if row_data[0] == "Document Information:": # ['Document Information:', 'Supreme Court of Alabama. January 11, 1910 164 Ala. 111 51 So. 424\nExtracted from page: 1\n']
                 tempRowOfCSV = []
@@ -34,6 +32,23 @@ def read_docx_table(file_path):
                 # WestCheck Information
                 if row_data[1]:
                     tempRowOfCSV.append(row_data[1])
+                    
+                    # CASE ID DOES NOT EXIST FOR ALL CASES PRIMARY CASE INFO
+                    # tempRowOfCSV.append(row_data[1].split(",")[2])
+
+                    # Logic To Extract the Primary Case Date.
+                    # TODO: LOGIC IS FLAWED FOR SOME ENTRIES WHERE THERE ARE MULTIPLE CIRCULAR BRACKETS
+                    pattern = r'\((.*?)\)'
+                    matches = re.findall(pattern, row_data[1])
+                    # Remove the state from date
+                    if matches:
+                        tempRowOfCSV.append(' '.join(matches[0].split()[1:]))
+                        # TODO: STATE LOGIC IS FLAWED, JUST USED EXTERNALLY PASSED TO THE FUNCTION VARIABLE
+                        tempRowOfCSV.append(matches[0].split(' ', 1)[0])
+                    else:
+                        tempRowOfCSV.append("")
+                        tempRowOfCSV.append("")
+                    
 
             # ['Treatment', 'Title', 'Date', 'Type', 'Depth', 'Headnote(s)']
             # Treatment - Overruled by
@@ -83,29 +98,29 @@ def read_docx_table(file_path):
                     localCopyOfTempRowOfCSV.append(row_data[2])
                 
                 finalCSV.append(localCopyOfTempRowOfCSV[:])
+        
+# Define the folder containing the DOCX files for a perticular State
+folder_path = '/Users/kdhyani/desktop/west-law/files/Nebraska/Process' #'/Users/kdhyani/desktop/west-law/files/<STATE>/Process'
 
-                
+# print(os.listdir(folder_path)) #DEBUG
+
+# Iterate over all files in the folder
+for file_name in os.listdir(folder_path):
+    print(file_name)
+    if file_name.endswith('.docx'):
+        # Construct the absolute path to the file
+        docx_file_path = os.path.join(folder_path, file_name)
+        read_docx_table(docx_file_path, "Nebraska")
+
+final_output_file_name = "./output/" + "Nebraska" + ".csv"
+
+with open(final_output_file_name, 'w') as f:
     
-    # print("=========================================================================") # DEBUG
-    # print(len(finalCSV)) # DEBUG
-
-    with open('test.csv', 'w') as f:
-        
-        # using csv.writer method from CSV package
-        write = csv.writer(f)
-        
-        write.writerow(["DOCUMENT INFORMATION", "PRIMARY CASE INFORMATION", "TREATMENT", "TREATED CASE INFORMATION", "TREATED CASE DATE"])
-        write.writerows(finalCSV)
-
-    # for csvRows in finalCSV: # DEBUG
-    #     print(csvRows) # DEBUG
-    #     print("$$$$$$$$$$$$$$$$$") # DEBUG
-
-
-# Example usage:
-docx_file = '/Users/kdhyani/desktop/west-law/WestCheck Report_12-30-2023_05.00.01.docx'  # https://www.dropbox.com/home/data%20for%20sanskriti/Processed%20files/States/Georgia/Process?preview=WestCheck+Report_12-30-2023_05.00.01.docx
-read_docx_table(docx_file)
-
+    # using csv.writer method from CSV package
+    write = csv.writer(f)
+    
+    write.writerow(["DOCUMENT INFORMATION", "PRIMARY CASE INFORMATION", "PRIMARY CASE DATE", "STATE", "TREATMENT", "TREATED CASE INFORMATION", "TREATED CASE DATE"])
+    write.writerows(finalCSV)
 
 # for row in table_data:
 #     print(row)
